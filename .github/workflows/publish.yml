@@ -1,0 +1,28 @@
+name: Publish to pub.dev
+
+# pub.dev n'accepte la publication OIDC que sur un push de tag correspondant
+# au tag-pattern configuré dans l'admin du package (ex. v{{version}}).
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for pub.dev publishing with OIDC
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter pub get
+
+      - run: dart analyze
+
+      - run: dart pub publish --dry-run
+
+      - run: dart pub publish -f
