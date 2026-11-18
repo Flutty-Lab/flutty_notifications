@@ -1,30 +1,30 @@
-/// Statut d'accès aux notifications de l'appareil.
+/// Access status of the device's notifications.
 enum NotificationAccess {
-  /// Les notifications sont autorisées.
+  /// Notifications are allowed.
   granted,
 
-  /// La permission n'a jamais été demandée : on peut afficher la demande
-  /// système.
+  /// Permission has never been requested: the system prompt can be
+  /// shown.
   askable,
 
-  /// Refusé (définitivement) : il faut renvoyer l'utilisateur vers les
-  /// réglages système.
+  /// Denied (permanently): the user must be redirected to the system
+  /// settings.
   blocked,
 }
 
-/// Message push normalisé, indépendant de `firebase_messaging`.
+/// Normalized push message, independent of `firebase_messaging`.
 class PushMessage {
   const PushMessage({this.title, this.body, required this.data});
 
-  /// Titre de la notification, si le message en porte un.
+  /// Notification title, if the message carries one.
   final String? title;
 
-  /// Corps de la notification, si le message en porte un.
+  /// Notification body, if the message carries one.
   final String? body;
 
-  /// Données arbitraires du message (`RemoteMessage.data`).
+  /// Arbitrary message data (`RemoteMessage.data`).
   final Map<String, dynamic> data;
 
-  /// Route cible pour le deep link, convention `data['route']`.
+  /// Deep link target route, the `data['route']` convention.
   String? get route => data['route'] as String?;
 }

@@ -1,53 +1,53 @@
 # flutty_notifications
 
-Notifications push (FCM + APNs) pour les apps Flutter : permission contextuelle, cycle de vie du token d'appareil, affichage au premier plan, routage du tap et badge d'icône.
+Push notifications (FCM + APNs) for Flutter apps: contextual permission, device token lifecycle, foreground display, tap routing and icon badge.
 
 ## Usage
 
 ```dart
 final notifications = FluttyNotifications();
 
-// Au démarrage : configure la réception SANS demander la permission.
+// At startup: configures reception WITHOUT asking for permission.
 await notifications.init(
-  onTokenPersist: (token) => monBackend.registerDevice(token),
+  onTokenPersist: (token) => myBackend.registerDevice(token),
   onNotificationTap: (message) => router.pushPath(message.route ?? '/'),
-  onForegroundMessage: (message) => rafraichirLesCaches(),
+  onForegroundMessage: (message) => refreshCaches(),
 );
 
-// Plus tard, quand le contexte le justifie (premier partage, premier
-// enfant…) — jamais au premier lancement sans explication :
+// Later, when context justifies it (first share, first child…) —
+// never at first launch without explanation:
 final access = await notifications.requestPermission();
 
-// Permission refusée en dur → renvoyer vers les réglages :
+// Permanently denied → redirect to system settings:
 if (access == NotificationAccess.blocked) {
   await notifications.openNotificationSettings();
 }
 
-// À la déconnexion : dissocier l'appareil du compte.
+// On sign-out: unlink the device from the account.
 await notifications.unregisterDevice();
 
-// Après un nouveau login sans ré-init : ré-enregistrer l'appareil.
+// After a new login without re-init: re-register the device.
 await notifications.registerDevice();
 ```
 
-- `onTokenPersist(token)` doit renvoyer `true` si l'enregistrement a réussi — un échec est retenté au prochain `init`, et un token inchangé n'est jamais renvoyé.
-- `message.route` porte la route cible du deep link (convention `data['route']` dans le payload FCM). Un tap sur une notification affichée au premier plan livre le `PushMessage` complet (titre, corps, `data`), comme un tap natif.
-- Le badge de l'icône est incrémenté automatiquement pour chaque push reçu app fermée (handler background enregistré par `init`), et remis à zéro à l'ouverture **et au retour au premier plan**. Un `badge_count` dans le payload serveur force la valeur exacte.
-- FCM n'accepte qu'**un seul handler background** : si l'app a besoin du sien, passer `registerBackgroundHandler: false` à `init` et appeler `fluttyNotificationsBackgroundHandler` depuis son propre handler pour garder le badge à jour.
+- `onTokenPersist(token)` must return `true` when registration succeeded — a failure is retried on the next `init`, and an unchanged token is never resent.
+- `message.route` carries the deep link target route (the `data['route']` convention in the FCM payload). A tap on a foreground notification delivers the full `PushMessage` (title, body, `data`), like a native tap.
+- The icon badge is incremented automatically for each push received while the app is closed (background handler registered by `init`), and reset to zero on app open **and on resume**. A `badge_count` in the server payload forces the exact value.
+- FCM only accepts **one background handler**: if the app needs its own, pass `registerBackgroundHandler: false` to `init` and call `fluttyNotificationsBackgroundHandler` from your own handler to keep the badge up to date.
 
-## Configuration Android
+## Android setup
 
-- `AndroidManifest.xml` : ajouter la permission `POST_NOTIFICATIONS` (Android 13+).
-- Icône de notification : le package utilise `@mipmap/ic_launcher` pour les notifications au premier plan — fournir une icône dédiée si besoin (voir `flutter_local_notifications`).
-- Le canal par défaut est configurable via `androidChannelId` / `androidChannelName` / `androidChannelDescription` dans `init`.
-- **Auto Backup** : le flag `flutty_notifications.permission_requested` vit dans `FlutterSharedPreferences.xml`, sauvegardé par défaut par Android. Après restauration (réinstallation, nouvel appareil), `access()` peut rapporter `blocked` alors que le prompt est encore affichable. Si l'app déclare `fullBackupContent`/`dataExtractionRules`, elle peut exclure ce fichier — attention, cela exclut *toutes* ses SharedPreferences. Cas voisin : révocation depuis les réglages système → `access()` reste `blocked` jusqu'au prochain `requestPermission()` (comportement assumé, le prompt ne peut pas être distingué d'un refus définitif sans le flag).
+- `AndroidManifest.xml`: add the `POST_NOTIFICATIONS` permission (Android 13+).
+- Notification icon: the package uses `@mipmap/ic_launcher` for foreground notifications — provide a dedicated icon if needed (see `flutter_local_notifications`).
+- The default channel can be configured via `androidChannelId` / `androidChannelName` / `androidChannelDescription` in `init`.
+- **Auto Backup**: the `flutty_notifications.permission_requested` flag lives in `FlutterSharedPreferences.xml`, which Android backs up by default. After a restore (reinstall, new device), `access()` may report `blocked` even though the prompt can still be shown. If your app declares `fullBackupContent`/`dataExtractionRules`, it can exclude that file — note that this excludes *all* of its SharedPreferences. Related case: permission revoked from system settings → `access()` stays `blocked` until the next `requestPermission()` (accepted behavior — without the flag, a first-time prompt cannot be told apart from a permanent denial).
 
-## Configuration iOS
+## iOS setup
 
-- Clé APNs déclarée dans le projet Firebase.
-- Capabilities Xcode : *Push Notifications* et *Background Modes → Remote notifications*.
-- Badge : le handler background ne tourne pas sur iOS pour un push « notification » classique (sans `content-available: 1`). Le compteur iOS doit donc venir du payload serveur (`aps.badge` et/ou `badge_count`), pas de l'incrément local.
+- APNs key configured in the Firebase project.
+- Xcode capabilities: *Push Notifications* and *Background Modes → Remote notifications*.
+- Badge: the background handler does not run on iOS for a regular "notification" push (without `content-available: 1`). The iOS counter must therefore come from the server payload (`aps.badge` and/or `badge_count`), not from the local increment.
 
-## Testabilité
+## Testability
 
-`MessagingGateway`, `LocalNotificationsGateway`, `NotificationTokenStore` et `BadgeService` sont injectables : les tests passent des fakes au constructeur, aucun Firebase n'est nécessaire.
+`MessagingGateway`, `LocalNotificationsGateway`, `NotificationTokenStore` and `BadgeService` are injectable: tests pass fakes to the constructor, no Firebase is needed.

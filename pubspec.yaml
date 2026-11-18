@@ -1,6 +1,6 @@
 name: flutty_notifications
 description: "Push notifications (FCM + APNs) for Flutter apps: contextual permission, device token lifecycle, foreground display and tap routing."
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/Flutty-Lab/flutty_notifications
 repository: https://github.com/Flutty-Lab/flutty_notifications
 issue_tracker: https://github.com/Flutty-Lab/flutty_notifications/issues

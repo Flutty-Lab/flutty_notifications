@@ -5,8 +5,8 @@ import 'package:flutty_notifications/flutty_notifications.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockMessagingGateway extends Mock implements MessagingGateway {
-  // Broadcast comme les streams FCM réels : ils acceptent plusieurs
-  // abonnements successifs (init, registerDevice après re-login…).
+  // Broadcast like the real FCM streams: they accept several
+  // successive subscriptions (init, registerDevice after re-login…).
   final registrationController = StreamController<String>.broadcast();
   final messageController = StreamController<PushMessage>.broadcast();
   final messageOpenedAppController = StreamController<PushMessage>.broadcast();
@@ -47,7 +47,7 @@ void stubMessagingDefaults(MockMessagingGateway messaging) {
       .thenAnswer((_) async => AuthorizationStatus.notDetermined);
   when(messaging.requestPermission)
       .thenAnswer((_) async => AuthorizationStatus.denied);
-  // register() déclenche l'émission du jeton via onRegistered, comme FCM.
+  // register() triggers the token emission via onRegistered, like FCM.
   when(() => messaging.register()).thenAnswer((_) async {
     messaging.registrationController.add('fcm-token');
   });

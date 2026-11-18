@@ -1,21 +1,22 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persiste le dernier token FCM envoyé avec succès au backend.
+/// Persists the last FCM token successfully sent to the backend.
 ///
-/// Le token n'est mémorisé qu'après un envoi réussi : un envoi en échec est
-/// retenté au prochain `init`, et un token inchangé n'est pas renvoyé.
+/// The token is only stored after a successful send: a failed send is
+/// retried on the next `init`, and an unchanged token is not resent.
 abstract class NotificationTokenStore {
-  /// Dernier token persisté, ou `null` si aucun envoi n'a encore réussi.
+  /// Last persisted token, or `null` if no send has succeeded yet.
   String? get persistedToken;
 
-  /// Mémorise [token] comme dernier token envoyé avec succès.
+  /// Stores [token] as the last successfully sent token.
   Future<void> save(String token);
 
-  /// Oublie le token mémorisé (après désenregistrement ou session invalide).
+  /// Forgets the stored token (after unregistration or an invalid
+  /// session).
   Future<void> clear();
 }
 
-/// [NotificationTokenStore] adossé à `SharedPreferences`.
+/// [NotificationTokenStore] backed by `SharedPreferences`.
 class SharedPreferencesTokenStore implements NotificationTokenStore {
   SharedPreferencesTokenStore(this._prefs);
 

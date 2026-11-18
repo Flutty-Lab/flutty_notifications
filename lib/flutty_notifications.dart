@@ -1,5 +1,5 @@
-/// Push notifications (FCM + APNs) : permission contextuelle, cycle de vie
-/// du token d'appareil, affichage au premier plan, routage du tap, badge.
+/// Push notifications (FCM + APNs): contextual permission, device token
+/// lifecycle, foreground display, tap routing, badge.
 library;
 
 export 'src/background_handler.dart';

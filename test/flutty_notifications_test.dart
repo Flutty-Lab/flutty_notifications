@@ -67,41 +67,38 @@ void main() {
   }
 
   group('init', () {
-    test('enregistre le handler background et remet le badge à zéro', () async {
+    test('registers the background handler and resets the badge', () async {
       await notifications.init(onTokenPersist: persist);
       verify(() => messaging.setBackgroundMessageHandler(any())).called(1);
       verify(badge.reset).called(1);
     });
 
-    test('ne demande pas la permission', () async {
+    test('does not request permission', () async {
       await notifications.init(onTokenPersist: persist);
       verifyNever(messaging.requestPermission);
     });
 
-    test(
-      'registerBackgroundHandler: false → aucun handler enregistré',
-      () async {
-        await notifications.init(
-          onTokenPersist: persist,
-          registerBackgroundHandler: false,
-        );
-        verifyNever(() => messaging.setBackgroundMessageHandler(any()));
-      },
-    );
+    test('registerBackgroundHandler: false → no handler registered', () async {
+      await notifications.init(
+        onTokenPersist: persist,
+        registerBackgroundHandler: false,
+      );
+      verifyNever(() => messaging.setBackgroundMessageHandler(any()));
+    });
 
-    test('un échec des notifications locales ne coupe pas '
-        'l\'enregistrement FCM', () async {
+    test('a local notifications failure does not stop '
+        'FCM registration', () async {
       when(messaging.notificationSettings)
           .thenAnswer((_) async => AuthorizationStatus.authorized);
       when(() => localNotifications.initialize(onTap: any(named: 'onTap')))
-          .thenThrow(Exception('plugin cassé'));
+          .thenThrow(Exception('broken plugin'));
       await notifications.init(onTokenPersist: persist);
       await flush();
       expect(persistedTokens, ['fcm-token']);
     });
 
     test(
-      'enregistre le token sans demande si la permission est déjà accordée',
+      'registers the token without asking when permission is already granted',
       () async {
         when(messaging.notificationSettings)
             .thenAnswer((_) async => AuthorizationStatus.authorized);
@@ -113,7 +110,7 @@ void main() {
     );
 
     test(
-      'n\'enregistre pas le token si la permission n\'est pas accordée',
+      'does not register the token when permission is not granted',
       () async {
         await notifications.init(onTokenPersist: persist);
         await flush();
@@ -122,7 +119,7 @@ void main() {
       },
     );
 
-    test('ne re-persiste pas un token déjà envoyé', () async {
+    test('does not re-persist an already sent token', () async {
       when(messaging.notificationSettings)
           .thenAnswer((_) async => AuthorizationStatus.authorized);
       tokenStore.stored = 'fcm-token';
@@ -131,7 +128,7 @@ void main() {
       expect(persistedTokens, isEmpty);
     });
 
-    test('un envoi en échec n\'est pas mémorisé et sera retenté', () async {
+    test('a failed send is not stored and will be retried', () async {
       when(messaging.notificationSettings)
           .thenAnswer((_) async => AuthorizationStatus.authorized);
       await notifications.init(onTokenPersist: (_) async => false);
@@ -139,7 +136,7 @@ void main() {
       expect(tokenStore.persistedToken, isNull);
     });
 
-    test('un changement de token FCM est persisté', () async {
+    test('an FCM token change is persisted', () async {
       when(messaging.notificationSettings)
           .thenAnswer((_) async => AuthorizationStatus.authorized);
       await notifications.init(onTokenPersist: persist);
@@ -151,7 +148,7 @@ void main() {
   });
 
   group('requestPermission', () {
-    test('accord → enregistre le token', () async {
+    test('granted → registers the token', () async {
       when(messaging.requestPermission)
           .thenAnswer((_) async => AuthorizationStatus.authorized);
       await notifications.init(onTokenPersist: persist);
@@ -161,7 +158,7 @@ void main() {
       expect(persistedTokens, ['fcm-token']);
     });
 
-    test('refus → aucun enregistrement', () async {
+    test('denied → no registration', () async {
       await notifications.init(onTokenPersist: persist);
       final access = await notifications.requestPermission();
       await flush();
@@ -171,8 +168,8 @@ void main() {
   });
 
   group('messages', () {
-    test('message au premier plan → notification locale, badge remis à zéro '
-        'et callback', () async {
+    test('foreground message → local notification, badge reset '
+        'and callback', () async {
       final received = <PushMessage>[];
       await notifications.init(
         onTokenPersist: persist,
@@ -180,17 +177,17 @@ void main() {
       );
       messaging.messageController.add(
         const PushMessage(
-          title: 'Titre',
-          body: 'Corps',
+          title: 'Title',
+          body: 'Body',
           data: {'route': '/dashboard', 'conversation_id': '42'},
         ),
       );
       await flush();
-      // Le payload transporte le message complet, pas seulement la route.
+      // The payload carries the full message, not just the route.
       final captured = verify(
         () => localNotifications.show(
-          title: 'Titre',
-          body: 'Corps',
+          title: 'Title',
+          body: 'Body',
           channelId: any(named: 'channelId'),
           channelName: any(named: 'channelName'),
           payload: captureAny(named: 'payload'),
@@ -202,7 +199,7 @@ void main() {
       expect(received.single.route, '/dashboard');
     });
 
-    test('tap depuis l\'arrière-plan → callback avec la route', () async {
+    test('tap from background → callback with the route', () async {
       PushMessage? tapped;
       await notifications.init(
         onTokenPersist: persist,
@@ -216,7 +213,7 @@ void main() {
     });
 
     test(
-      'tap sur notification locale → callback avec le message complet',
+      'tap on local notification → callback with the full message',
       () async {
         PushMessage? tapped;
         await notifications.init(
@@ -225,20 +222,20 @@ void main() {
         );
         localNotifications.onTap?.call(
           jsonEncode({
-            'title': 'Titre',
-            'body': 'Corps',
+            'title': 'Title',
+            'body': 'Body',
             'data': {'route': '/child', 'conversation_id': '42'},
           }),
         );
         await flush();
-        expect(tapped?.title, 'Titre');
-        expect(tapped?.body, 'Corps');
+        expect(tapped?.title, 'Title');
+        expect(tapped?.body, 'Body');
         expect(tapped?.route, '/child');
         expect(tapped?.data['conversation_id'], '42');
       },
     );
 
-    test('payload local texte libre → lu comme une route', () async {
+    test('free-text local payload → read as a route', () async {
       PushMessage? tapped;
       await notifications.init(
         onTokenPersist: persist,
@@ -249,7 +246,7 @@ void main() {
       expect(tapped?.route, '/child');
     });
 
-    test('app lancée par une notification → callback', () async {
+    test('app launched by a notification → callback', () async {
       PushMessage? tapped;
       when(
         messaging.getInitialMessage,
@@ -264,7 +261,7 @@ void main() {
   });
 
   group('registerDevice', () {
-    test('ré-enregistre le token après unregisterDevice (re-login)', () async {
+    test('re-registers the token after unregisterDevice (re-login)', () async {
       when(messaging.notificationSettings)
           .thenAnswer((_) async => AuthorizationStatus.authorized);
       await notifications.init(onTokenPersist: persist);
@@ -273,12 +270,12 @@ void main() {
       persistedTokens.clear();
       await notifications.registerDevice();
       await flush();
-      // Le jeton revient via currentToken(), pas via une ré-émission.
+      // The token comes back via currentToken(), not via a re-emission.
       expect(persistedTokens, contains('fcm-token'));
       expect(tokenStore.persistedToken, 'fcm-token');
     });
 
-    test('sans permission → aucun enregistrement', () async {
+    test('without permission → no registration', () async {
       await notifications.init(onTokenPersist: persist);
       await notifications.registerDevice();
       await flush();
@@ -286,12 +283,12 @@ void main() {
       verifyNever(() => messaging.register());
     });
 
-    test('ne duplique pas l\'envoi quand register() émet le jeton '
-        'pendant la lecture directe', () async {
+    test('does not duplicate the send when register() emits the token '
+        'during the direct read', () async {
       when(messaging.notificationSettings)
           .thenAnswer((_) async => AuthorizationStatus.authorized);
-      // Envoi lent : la fenêtre de course entre l'émission du stream et
-      // la lecture directe doit produire une seule requête.
+      // Slow send: the race window between the stream emission and
+      // the direct read must produce a single request.
       await notifications.init(
         onTokenPersist: (token) async {
           await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -302,8 +299,8 @@ void main() {
       await flush();
       await notifications.unregisterDevice();
       persistedTokens.clear();
-      // register() émet 'fcm-token' via onRegistered pendant que
-      // registerDevice le lit via currentToken() : un seul envoi.
+      // register() emits 'fcm-token' via onRegistered while
+      // registerDevice reads it via currentToken(): a single send.
       await notifications.registerDevice();
       await flush();
       expect(persistedTokens, ['fcm-token']);
@@ -311,7 +308,7 @@ void main() {
   });
 
   group('unregisterDevice', () {
-    test('appelle le callback de retrait et oublie le token', () async {
+    test('calls the remove callback and forgets the token', () async {
       final removed = <String>[];
       tokenStore.stored = 'fcm-token';
       await notifications.init(
@@ -323,18 +320,18 @@ void main() {
       expect(tokenStore.persistedToken, isNull);
     });
 
-    test('oublie le token même si le retrait échoue', () async {
+    test('forgets the token even when removal fails', () async {
       tokenStore.stored = 'fcm-token';
       await notifications.init(
         onTokenPersist: persist,
-        onTokenRemove: (_) async => throw Exception('réseau'),
+        onTokenRemove: (_) async => throw Exception('network'),
       );
       await notifications.unregisterDevice();
       expect(tokenStore.persistedToken, isNull);
     });
   });
 
-  test('plateforme non supportée → init ne fait rien', () async {
+  test('unsupported platform → init does nothing', () async {
     notifications = FluttyNotifications(
       messaging: messaging,
       localNotifications: localNotifications,

@@ -12,44 +12,44 @@ import 'package:flutty_notifications/src/permission_service.dart';
 import 'package:flutty_notifications/src/token_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persiste un token FCM auprès du backend de l'app. Renvoie `true` si
-/// l'envoi a réussi ; sinon le package retentera au prochain `init`.
+/// Persists an FCM token to the app's backend. Returns `true` when the
+/// send succeeded; otherwise the package retries on the next `init`.
 typedef TokenPersistCallback = Future<bool> Function(String token);
 
-/// Dissocie un token du compte courant (déconnexion, suppression de compte).
+/// Unlinks a token from the current account (sign-out, account deletion).
 typedef TokenRemoveCallback = Future<void> Function(String token);
 
-/// Appelé quand l'utilisateur tape sur une notification (deep link :
-/// lire `message.route`).
+/// Called when the user taps a notification (deep link:
+/// read `message.route`).
 typedef NotificationTapCallback = void Function(PushMessage message);
 
-/// Appelé quand un push arrive app au premier plan.
+/// Called when a push arrives while the app is in the foreground.
 typedef ForegroundMessageCallback = void Function(PushMessage message);
 
-/// Rapporte une erreur interne du package (logging, Crashlytics…).
-/// Les notifications ne doivent jamais faire planter l'app.
+/// Reports an internal package error (logging, Crashlytics…).
+/// Notifications must never crash the app.
 typedef NotificationErrorCallback = void Function(
   Object error,
   StackTrace stackTrace,
 );
 
-/// Réception des push notifications FCM/APNs : permission, cycle de vie du
-/// token d'appareil, affichage au premier plan, routage du tap et badge.
+/// FCM/APNs push notification reception: permission, device token
+/// lifecycle, foreground display, tap routing and badge.
 ///
-/// Usage :
+/// Usage:
 /// ```dart
 /// final notifications = FluttyNotifications();
 /// await notifications.init(
-///   onTokenPersist: (token) => monBackend.registerDevice(token),
+///   onTokenPersist: (token) => myBackend.registerDevice(token),
 ///   onNotificationTap: (message) => router.pushPath(message.route ?? '/'),
 /// );
-/// // Plus tard, quand le contexte le justifie :
+/// // Later, when context justifies it:
 /// await notifications.requestPermission();
 /// ```
 ///
-/// La permission n'est **pas** demandée à l'init : c'est à l'app de choisir
-/// le bon moment via [requestPermission] (ou de laisser l'enregistrement se
-/// faire automatiquement si elle est déjà accordée).
+/// Permission is **not** requested during init: the app picks the right
+/// moment via [requestPermission] (or lets registration happen
+/// automatically when it is already granted).
 class FluttyNotifications {
   FluttyNotifications({
     MessagingGateway? messaging,
@@ -102,23 +102,23 @@ class FluttyNotifications {
   String _channelName = 'Notifications';
   String? _channelDescription;
 
-  /// Les push ne sont supportées que sur mobile natif.
+  /// Push is only supported on native mobile.
   bool get isSupported =>
       _platform == TargetPlatform.android || _platform == TargetPlatform.iOS;
 
-  /// Configure la réception : handler background, badge, affichage au
-  /// premier plan et routage du tap. N'affiche **pas** la demande de
-  /// permission.
+  /// Configures reception: background handler, badge, foreground
+  /// display and tap routing. Does **not** show the permission
+  /// request.
   ///
-  /// Ré-entrant : un second appel remplace les abonnements précédents.
+  /// Re-entrant: a second call replaces the previous subscriptions.
   ///
-  /// [registerBackgroundHandler] : FCM n'accepte qu'un seul handler
-  /// background. Une app qui a besoin du sien (sync, analytics…) passe
-  /// `false` et appelle `fluttyNotificationsBackgroundHandler` depuis
-  /// son propre handler pour garder le badge à jour.
+  /// [registerBackgroundHandler]: FCM only accepts a single background
+  /// handler. An app that needs its own (sync, analytics…) passes
+  /// `false` and calls `fluttyNotificationsBackgroundHandler` from its
+  /// own handler to keep the badge up to date.
   ///
-  /// Chaque étape est isolée : un échec (badge, notifications locales,
-  /// enregistrement) est rapporté via `onError` sans couper le reste.
+  /// Each step is isolated: a failure (badge, local notifications,
+  /// registration) is reported via `onError` without stopping the rest.
   Future<void> init({
     required TokenPersistCallback onTokenPersist,
     TokenRemoveCallback? onTokenRemove,
@@ -157,8 +157,8 @@ class FluttyNotifications {
       _tokenStore ??= SharedPreferencesTokenStore(prefs);
       _badgeService ??= BadgeService(prefs);
 
-      // Branché avant le reset : un échec du reset ne doit pas priver
-      // l'app du reset au resume.
+      // Wired before the reset: a reset failure must not deprive
+      // the app of the reset on resume.
       _appLifecycleListener = AppLifecycleListener(
         onResume: () {
           final reset = _badgeService?.reset();
@@ -166,7 +166,7 @@ class FluttyNotifications {
         },
       );
 
-      // Les push accumulés sont vus quand l'app revient au premier plan.
+      // Accumulated pushes are seen when the app comes back to the foreground.
       await _badgeService!.reset();
     } catch (error, stackTrace) {
       _report(error, stackTrace);
@@ -177,9 +177,9 @@ class FluttyNotifications {
         await _localNotifications.initialize(
           onTap: (payload) => _dispatchTap(_localMessageFromPayload(payload)),
         );
-        // iOS : pas de setForegroundNotificationPresentationOptions —
-        // l'affichage natif doublonnerait avec la notification locale,
-        // et l'option persisterait si on ré-init sans foreground.
+        // iOS: no setForegroundNotificationPresentationOptions —
+        // native display would duplicate the local notification,
+        // and the option would persist if we re-init without foreground.
       } catch (error, stackTrace) {
         _report(error, stackTrace);
       }
@@ -192,9 +192,9 @@ class FluttyNotifications {
       _report(error, stackTrace);
     }
 
-    // La permission est peut-être déjà accordée (ré-installation,
-    // permission donnée hors app) : enregistrer le token sans demander.
-    // Un échec de lecture du statut ne doit pas casser le reste.
+    // Permission may already be granted (reinstall, permission granted
+    // outside the app): register the token without asking.
+    // A failure reading the status must not break the rest.
     try {
       if (await _permissionService.access() == NotificationAccess.granted) {
         _subscribeRegistration();
@@ -204,7 +204,7 @@ class FluttyNotifications {
       _report(error, stackTrace);
     }
 
-    // Tap ayant lancé l'app depuis l'état terminé.
+    // Tap that launched the app from the terminated state.
     unawaited(
       _messaging
           .getInitialMessage()
@@ -218,19 +218,19 @@ class FluttyNotifications {
     );
   }
 
-  /// Demande la permission système. À appeler au moment utile (jamais au
-  /// premier lancement sans contexte). En cas d'accord, enregistre le
-  /// token auprès du backend.
+  /// Requests the system permission. Call it at a meaningful moment
+  /// (never at first launch without context). On grant, registers the
+  /// token with the backend.
   Future<NotificationAccess> requestPermission() async {
     if (!isSupported) return NotificationAccess.blocked;
     try {
       final status = await _messaging.requestPermission();
-      // Mémorise la demande : Android ne distingue plus « jamais
-      // demandé » de « refus définitif » sans elle.
+      // Remember the request: without it, Android can no longer tell
+      // "never asked" apart from "permanently denied".
       await _permissionService.markPermissionRequested();
-      // Android : `denied` couvre aussi le cas « notifications coupées dans
-      // les réglages » (<13 ou refus définitif) — le service de permission
-      // départage via shouldShowRequestRationale et le flag de demande.
+      // Android: `denied` also covers "notifications turned off in
+      // settings" (<13 or permanent denial) — the permission service
+      // disambiguates via shouldShowRequestRationale and the request flag.
       final access = _platform == TargetPlatform.android
           ? await _permissionService.access()
           : switch (status) {
@@ -252,26 +252,26 @@ class FluttyNotifications {
     }
   }
 
-  /// Statut courant de la permission notifications.
+  /// Current notification permission status.
   Future<NotificationAccess> access() => _permissionService.access();
 
-  /// Ouvre les réglages système des notifications (si [access] renvoie
+  /// Opens the system notification settings (when [access] returns
   /// [NotificationAccess.blocked]).
   Future<void> openNotificationSettings() =>
       _permissionService.openNotificationSettings();
 
-  /// Ré-enregistre le token de l'appareil auprès du backend — à appeler
-  /// après un login si l'app ne relance pas [init]. Sans effet si la
-  /// permission n'est pas accordée.
+  /// Re-registers the device token with the backend — call it after a
+  /// login if the app does not run [init] again. No-op when permission
+  /// is not granted.
   Future<void> registerDevice() async {
     if (!isSupported) return;
     try {
       if (await _permissionService.access() == NotificationAccess.granted) {
         _subscribeRegistration();
         await _registerInstance();
-        // Lecture directe : `onRegistered` ne ré-émet rien si le jeton
-        // est inchangé — seul le cas « pas encore enregistré » produit
-        // un événement.
+        // Direct read: `onRegistered` emits nothing when the token is
+        // unchanged — only the "not yet registered" case produces
+        // an event.
         final token = await _messaging.currentToken();
         if (token != null) await _persistToken(token);
       }
@@ -280,11 +280,11 @@ class FluttyNotifications {
     }
   }
 
-  /// Dissocie le token courant du compte (à appeler avant la purge de la
-  /// session). Un échec est ignoré : la déconnexion ne doit jamais en être
-  /// bloquée. Après un nouveau login, appeler [registerDevice] (ou
-  /// relancer [init]) : `onRegistered` n'émet rien tant que le token
-  /// ne change pas.
+  /// Unlinks the current token from the account (call before the
+  /// session teardown). A failure is ignored: sign-out must never be
+  /// blocked by it. After a new login, call [registerDevice] (or run
+  /// [init] again): `onRegistered` emits nothing while the token
+  /// does not change.
   Future<void> unregisterDevice() async {
     final token = _tokenStore?.persistedToken;
     if (token == null) return;
@@ -293,13 +293,13 @@ class FluttyNotifications {
     } catch (error, stackTrace) {
       _report(error, stackTrace);
     }
-    // Le token mémorisé est oublié même si l'appel a échoué : sinon un
-    // re-login sur le même appareil ne ré-enregistrerait jamais le device.
+    // The stored token is forgotten even if the call failed: otherwise
+    // a re-login on the same device would never re-register it.
     await _tokenStore?.clear();
   }
 
-  /// Oublie le token mémorisé sans appel réseau (session déjà invalide) :
-  /// le prochain `init` ré-enregistrera le device.
+  /// Forgets the stored token without a network call (session already
+  /// invalid): the next `init` re-registers the device.
   Future<void> forgetDevice() => _tokenStore?.clear() ?? Future.value();
 
   void _subscribeRegistration() {
@@ -309,23 +309,24 @@ class FluttyNotifications {
 
   Future<void> _registerInstance() async {
     try {
-      // iOS : attend le token APNs, sinon register() peut échouer.
+      // iOS: wait for the APNs token, otherwise register() may fail.
       if (_platform == TargetPlatform.iOS && !await _waitForApnsToken()) {
         _report(StateError('APNs token never received'), StackTrace.current);
         return;
       }
-      // Le jeton d'envoi arrive via onRegistered → _persistToken.
+      // The send token arrives via onRegistered → _persistToken.
       await _messaging.register();
     } catch (error, stackTrace) {
       _report(error, stackTrace);
     }
   }
 
-  /// Envoie le token au backend s'il diffère du dernier envoyé avec succès.
-  /// Un envoi en cours pour ce jeton est partagé : `register` peut émettre
-  /// le jeton via `onRegistered` pendant que `registerDevice` le lit déjà
-  /// via [MessagingGateway.currentToken] — sans dédup, le backend reçoit
-  /// deux requêtes avant que le store ne soit sauvegardé.
+  /// Sends the token to the backend if it differs from the last
+  /// successfully sent one. An in-flight send for that token is shared:
+  /// `register` may emit the token via `onRegistered` while
+  /// `registerDevice` is already reading it through
+  /// [MessagingGateway.currentToken] — without dedup, the backend would
+  /// get two requests before the store is saved.
   Future<void> _persistToken(String token) {
     final inFlight = _tokenPersistInFlight[token];
     if (inFlight != null) return inFlight;
@@ -352,9 +353,9 @@ class FluttyNotifications {
           channelId: _channelId,
           channelName: _channelName,
           channelDescription: _channelDescription,
-          // Le payload transporte le message complet : au tap, le
-          // callback reçoit les mêmes données que pour un tap natif
-          // (onMessageOpenedApp), pas seulement la route.
+          // The payload carries the full message: on tap, the
+          // callback receives the same data as a native tap
+          // (onMessageOpenedApp), not just the route.
           payload: jsonEncode({
             'title': message.title,
             'body': message.body,
@@ -368,8 +369,8 @@ class FluttyNotifications {
     _onForegroundMessage?.call(message);
   }
 
-  /// Rapporte les erreurs d'un traitement détaché au lieu de les laisser
-  /// remonter au handler d'erreurs globales de l'app.
+  /// Reports errors from a detached task instead of letting them
+  /// reach the app's global error handler.
   void _guarded(Future<void> future) {
     unawaited(
       future.catchError((Object error, StackTrace stackTrace) {
@@ -380,9 +381,9 @@ class FluttyNotifications {
 
   void _dispatchTap(PushMessage message) => _onNotificationTap?.call(message);
 
-  /// Décode le payload d'une notification locale : le message sérialisé
-  /// dans [_onForegroundPush]. Un texte libre (ancienne version, notif
-  /// non émise par le package) reste lu comme une route.
+  /// Decodes a local notification payload: the message serialized in
+  /// [_onForegroundPush]. Free text (older version, notification not
+  /// issued by the package) is still read as a route.
   PushMessage _localMessageFromPayload(String? payload) {
     if (payload != null) {
       try {
@@ -397,7 +398,7 @@ class FluttyNotifications {
           );
         }
       } on FormatException {
-        // Payload non-JSON → interprété comme une route ci-dessous.
+        // Non-JSON payload → interpreted as a route below.
       }
     }
     return PushMessage(data: {'route': payload});
@@ -420,7 +421,7 @@ class FluttyNotifications {
     }
   }
 
-  /// Annule les abonnements en cours (appelé par [init]).
+  /// Cancels the current subscriptions (called by [init]).
   void dispose() {
     unawaited(_registrationSubscription?.cancel());
     unawaited(_messageSubscription?.cancel());

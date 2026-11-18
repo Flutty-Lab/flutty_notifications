@@ -2,12 +2,12 @@ import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Badge de l'icône de l'app : compte les push reçus depuis la dernière
-/// ouverture, remis à zéro au retour au premier plan.
+/// App icon badge: counts pushes received since the last open, reset to
+/// zero when the app returns to the foreground.
 ///
-/// Le compteur est persisté dans `SharedPreferences` car les push reçus
-/// app fermée sont traités dans un isolate séparé, sans état partagé avec
-/// l'app.
+/// The counter is persisted in `SharedPreferences` because pushes
+/// received while the app is closed are handled in a separate isolate,
+/// with no state shared with the app.
 class BadgeService {
   BadgeService(this._prefs, {Future<void> Function(int)? badgeUpdater})
     : _badgeUpdater = badgeUpdater ?? AppBadgePlus.updateBadge;
@@ -18,9 +18,9 @@ class BadgeService {
   final Future<void> Function(int) _badgeUpdater;
 
   Future<void> increment() async {
-    // L'isolate background écrit dans les mêmes préférences : sans
-    // reload, le cache de l'isolate courant masque ses incréments
-    // (et réciproquement).
+    // The background isolate writes to the same preferences: without a
+    // reload, the current isolate's cache would hide its increments
+    // (and vice versa).
     await _prefs.reload();
     await set((_prefs.getInt(countKey) ?? 0) + 1);
   }
@@ -32,8 +32,8 @@ class BadgeService {
 
   Future<void> reset() => set(0);
 
-  /// Best effort : certains launchers Android ne supportent pas le badge,
-  /// et un échec d'affichage ne doit jamais remonter plus haut.
+  /// Best effort: some Android launchers do not support badges, and a
+  /// display failure must never propagate.
   Future<void> _updateBadge(int count) async {
     try {
       await _badgeUpdater(count);

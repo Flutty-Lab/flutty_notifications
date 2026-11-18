@@ -84,7 +84,7 @@ void main() {
       );
     });
 
-    test('denied avec rationale (13+, re-demandable) → askable', () async {
+    test('denied with rationale (13+, re-askable) → askable', () async {
       expect(
         await service(
           androidStatus: () async => PermissionStatus.denied,
@@ -94,7 +94,7 @@ void main() {
       );
     });
 
-    test('denied sans rationale, jamais demandé (13+) → askable', () async {
+    test('denied without rationale, never asked (13+) → askable', () async {
       expect(
         await service(
           androidStatus: () async => PermissionStatus.denied,
@@ -104,8 +104,8 @@ void main() {
       );
     });
 
-    test('denied sans rationale après une demande (refus définitif ou '
-        '<13) → blocked', () async {
+    test('denied without rationale after a request (permanent denial '
+        'or <13) → blocked', () async {
       SharedPreferences.setMockInitialValues({
         NotificationPermissionService.requestedKey: true,
       });
@@ -118,7 +118,7 @@ void main() {
       );
     });
 
-    test('denied sur Android <13 (aucun prompt possible) → blocked', () async {
+    test('denied on Android <13 (no prompt possible) → blocked', () async {
       expect(
         await service(
           androidStatus: () async => PermissionStatus.denied,
@@ -129,7 +129,7 @@ void main() {
       );
     });
 
-    test('markPermissionRequested pose le flag', () async {
+    test('markPermissionRequested sets the flag', () async {
       await service().markPermissionRequested();
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool(NotificationPermissionService.requestedKey), isTrue);
@@ -145,7 +145,7 @@ void main() {
     });
   });
 
-  test('plateforme non supportée → blocked', () async {
+  test('unsupported platform → blocked', () async {
     expect(
       await service(platform: TargetPlatform.linux).access(),
       NotificationAccess.blocked,

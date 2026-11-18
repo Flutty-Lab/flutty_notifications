@@ -2,20 +2,20 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutty_notifications/src/badge_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Handler FCM exécuté dans l'isolate dédié quand un push arrive app
-/// fermée ou en arrière-plan.
+/// FCM handler executed in the dedicated isolate when a push arrives
+/// while the app is closed or in the background.
 ///
-/// Incrémente le badge de l'icône — sauf si le serveur fournit déjà un
-/// compteur `badge_count` dans le payload. GetIt n'existe pas dans cet
-/// isolate : on recrée un accès minimal aux préférences.
+/// Increments the icon badge — unless the server already provides a
+/// `badge_count` in the payload. GetIt does not exist in this isolate:
+/// we rebuild a minimal access to the preferences.
 ///
-/// Enregistré automatiquement par `FluttyNotifications.init`, sauf si
-/// `registerBackgroundHandler: false` : dans ce cas l'app doit appeler
-/// ce handler depuis son propre handler background.
+/// Registered automatically by `FluttyNotifications.init`, unless
+/// `registerBackgroundHandler: false` is passed — in that case the app
+/// must call this handler from its own background handler.
 ///
-/// Note iOS : ne tourne pas pour un push « notification » classique
-/// (sans `content-available: 1`) — le compteur iOS doit venir du
-/// payload serveur (`aps.badge` / `badge_count`).
+/// iOS note: does not run for a regular "notification" push (without
+/// `content-available: 1`) — the iOS counter must come from the server
+/// payload (`aps.badge` / `badge_count`).
 @pragma('vm:entry-point')
 Future<void> fluttyNotificationsBackgroundHandler(RemoteMessage message) async {
   final prefs = await SharedPreferences.getInstance();

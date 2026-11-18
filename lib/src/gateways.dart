@@ -4,43 +4,44 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutty_notifications/src/models.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// Abstraction de `FirebaseMessaging`, pour tester sans Firebase.
+/// Abstraction of `FirebaseMessaging`, to allow testing without
+/// Firebase.
 abstract class MessagingGateway {
-  /// Demande la permission système et renvoie son statut.
+  /// Requests the system permission and returns its status.
   Future<AuthorizationStatus> requestPermission();
 
-  /// Statut courant de la permission notifications (iOS/macOS).
+  /// Current notification permission status (iOS/macOS).
   Future<AuthorizationStatus> notificationSettings();
 
-  /// Token APNs iOS — peut mettre du temps à arriver après l'install.
+  /// iOS APNs token — can take a while to arrive after install.
   Future<String?> getApnsToken();
 
-  /// Enregistre l'instance auprès de FCM (nécessite la permission). Le
-  /// jeton d'envoi (FID) est ensuite émis par [onRegistered].
+  /// Registers the instance with FCM (requires permission). The send
+  /// token (FID) is then emitted by [onRegistered].
   Future<void> register();
 
-  /// Émis après [register] et à chaque renouvellement : le jeton
-  /// d'envoi direct (FID) à transmettre au backend.
+  /// Emitted after [register] and on each renewal: the direct send
+  /// token (FID) to forward to the backend.
   Stream<String> get onRegistered;
 
-  /// Lit le jeton courant (après [register]) — `onRegistered` n'émet
-  /// rien tant que le jeton ne change pas.
+  /// Reads the current token (after [register]) — `onRegistered` emits
+  /// nothing while the token does not change.
   Future<String?> currentToken();
 
-  /// Messages reçus app au premier plan.
+  /// Messages received while the app is in the foreground.
   Stream<PushMessage> get onMessage;
 
-  /// Tap sur une notification alors que l'app était en arrière-plan.
+  /// Tap on a notification while the app was in the background.
   Stream<PushMessage> get onMessageOpenedApp;
 
-  /// Notification à l'origine du lancement de l'app (état terminé).
+  /// Notification that launched the app (terminated state).
   Future<PushMessage?> getInitialMessage();
 
-  /// Enregistre le handler exécuté dans l'isolate background.
+  /// Registers the handler executed in the background isolate.
   void setBackgroundMessageHandler(BackgroundMessageHandler handler);
 }
 
-/// Implémentation réelle adossée à `firebase_messaging`.
+/// Real implementation backed by `firebase_messaging`.
 class FirebaseMessagingGateway implements MessagingGateway {
   FirebaseMessagingGateway({FirebaseMessaging? messaging})
     : _messaging = messaging ?? FirebaseMessaging.instance;
@@ -71,8 +72,8 @@ class FirebaseMessagingGateway implements MessagingGateway {
   Stream<String> get onRegistered => _messaging.onRegistered;
 
   @override
-  // Pas d'alternative publique pour lire le jeton courant : register()
-  // ne ré-émet pas via onRegistered si le jeton est inchangé.
+  // No public alternative to read the current token: register() does
+  // not re-emit via onRegistered when the token is unchanged.
   // ignore: deprecated_member_use
   Future<String?> currentToken() => _messaging.getToken();
 
@@ -96,13 +97,14 @@ class FirebaseMessagingGateway implements MessagingGateway {
       FirebaseMessaging.onBackgroundMessage(handler);
 }
 
-/// Abstraction de `FlutterLocalNotificationsPlugin`, pour l'affichage des
-/// notifications reçues app ouverte.
+/// Abstraction of `FlutterLocalNotificationsPlugin`, for displaying
+/// notifications received while the app is open.
 abstract class LocalNotificationsGateway {
-  /// Initialise le plugin ; [onTap] reçoit le payload de la notification.
+  /// Initializes the plugin; [onTap] receives the notification
+  /// payload.
   Future<void> initialize({required void Function(String? payload) onTap});
 
-  /// Affiche une notification locale.
+  /// Shows a local notification.
   Future<void> show({
     required String title,
     required String body,
@@ -113,16 +115,16 @@ abstract class LocalNotificationsGateway {
   });
 }
 
-/// Implémentation réelle adossée à `flutter_local_notifications`.
+/// Real implementation backed by `flutter_local_notifications`.
 class FlutterLocalNotificationsGateway implements LocalNotificationsGateway {
   FlutterLocalNotificationsGateway({FlutterLocalNotificationsPlugin? plugin})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
 
-  // Seedé par le temps : un compteur repartant de 0 écraserait les
-  // notifications encore présentes dans le tray d'une session
-  // précédente (même id).
+  // Seeded by time: a counter restarting from 0 would overwrite the
+  // notifications still present in the tray from a previous session
+  // (same id).
   int _nextId = DateTime.now().millisecondsSinceEpoch ~/ 1000 % 0x7fffffff;
   bool _launchTapDispatched = false;
 
@@ -131,8 +133,8 @@ class FlutterLocalNotificationsGateway implements LocalNotificationsGateway {
     required void Function(String? payload) onTap,
   }) async {
     await _plugin.initialize(
-      // iOS : pas de demande de permission ici — elle resterait affichée
-      // avant la demande contextuelle de l'app (requestPermission).
+      // iOS: no permission request here — it would stay on screen
+      // before the app's contextual request (requestPermission).
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(
@@ -143,10 +145,10 @@ class FlutterLocalNotificationsGateway implements LocalNotificationsGateway {
       ),
       onDidReceiveNotificationResponse: (response) => onTap(response.payload),
     );
-    // Tap sur une notification locale ayant lancé l'app (état terminé) :
-    // il n'arrive ni par onDidReceiveNotificationResponse ni par FCM.
-    // Le plugin ne consomme pas le détail : une seule distribution, sinon
-    // chaque ré-init rejouerait le tap.
+    // Tap on a local notification that launched the app (terminated
+    // state): it arrives neither via onDidReceiveNotificationResponse
+    // nor via FCM. The plugin does not consume the detail: dispatch it
+    // only once, otherwise every re-init would replay the tap.
     if (!_launchTapDispatched) {
       final launchDetails = await _plugin.getNotificationAppLaunchDetails();
       if (launchDetails?.didNotificationLaunchApp ?? false) {

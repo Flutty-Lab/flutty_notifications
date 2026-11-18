@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Statut de la permission notifications et accès aux réglages système.
+/// Notification permission status and access to system settings.
 class NotificationPermissionService {
   NotificationPermissionService({
     MessagingGateway? messaging,
@@ -27,16 +27,16 @@ class NotificationPermissionService {
        _preferences = preferences ?? SharedPreferences.getInstance,
        _platform = platform ?? defaultTargetPlatform;
 
-  /// `true` sur Android 13+ (API 33) : la permission notifications est
-  /// demandable à l'exécution. En dessous, `denied` signifie notifications
-  /// coupées dans les réglages — il n'existe aucun prompt.
+  /// `true` on Android 13+ (API 33): the notification permission can
+  /// be requested at runtime. Below that, `denied` means notifications
+  /// turned off in settings — there is no prompt.
   static Future<bool> _defaultAndroidRuntimePermission() async =>
       (await DeviceInfoPlugin().androidInfo).version.sdkInt >= 33;
 
-  /// Posé par [markPermissionRequested] après une première demande. Sur
-  /// Android 13+, `denied` sans rationale couvre deux cas — jamais
-  /// demandé (prompt encore possible) et refus définitif — que ce flag
-  /// départage.
+  /// Set by [markPermissionRequested] after a first request. On
+  /// Android 13+, `denied` without rationale covers two cases — never
+  /// asked (prompt still possible) and permanently denied — which this
+  /// flag disambiguates.
   static const requestedKey = 'flutty_notifications.permission_requested';
 
   final MessagingGateway _messaging;
@@ -46,7 +46,7 @@ class NotificationPermissionService {
   final Future<SharedPreferences> Function() _preferences;
   final TargetPlatform _platform;
 
-  /// Mémorise que la demande système a été affichée une fois.
+  /// Remembers that the system prompt has been shown once.
   Future<void> markPermissionRequested() async {
     try {
       final prefs = await _preferences();
@@ -56,11 +56,12 @@ class NotificationPermissionService {
     }
   }
 
-  /// `true` sur les plateformes où les push sont supportées (Android, iOS).
+  /// `true` on platforms where push is supported (Android, iOS).
   bool get isSupported =>
       _platform == TargetPlatform.android || _platform == TargetPlatform.iOS;
 
-  /// Statut courant : [NotificationAccess.granted], `askable` ou `blocked`.
+  /// Current status: [NotificationAccess.granted], `askable` or
+  /// `blocked`.
   Future<NotificationAccess> access() async {
     if (!isSupported) return NotificationAccess.blocked;
     if (_platform == TargetPlatform.iOS) {
@@ -74,19 +75,19 @@ class NotificationPermissionService {
     }
     final status = await _androidNotificationStatus();
     if (status == PermissionStatus.denied) {
-      // Android <13 : aucun prompt runtime, `denied` = notifications
-      // coupées dans les réglages → blocked, quoi qu'il arrive.
+      // Android <13: no runtime prompt, `denied` = notifications
+      // turned off in settings → blocked, no matter what.
       if (!await _androidRuntimePermission()) {
         return NotificationAccess.blocked;
       }
-      // 13+ : la rationale est vraie seulement si un nouveau prompt est
-      // possible (refus non définitif).
+      // 13+: the rationale is true only if a new prompt is possible
+      // (non-permanent denial).
       if (await _androidShouldShowRationale()) {
         return NotificationAccess.askable;
       }
-      // Sans rationale : « jamais demandé » (prompt encore possible) ou
-      // « refus définitif » (réglages). Seul le flag de la dernière
-      // demande les distingue.
+      // Without rationale: "never asked" (prompt still possible) or
+      // "permanently denied" (settings). Only the last-request flag
+      // tells them apart.
       final prefs = await _preferences();
       return (prefs.getBool(requestedKey) ?? false)
           ? NotificationAccess.blocked
@@ -95,7 +96,7 @@ class NotificationPermissionService {
     return _accessFrom(status);
   }
 
-  /// Ouvre les réglages système des notifications de l'app.
+  /// Opens the app's notification settings.
   Future<void> openNotificationSettings() =>
       AppSettings.openAppSettings(type: AppSettingsType.notification);
 

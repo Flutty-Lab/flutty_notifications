@@ -21,13 +21,13 @@ void main() {
     );
   });
 
-  test('increment part de zéro', () async {
+  test('increment starts from zero', () async {
     await badge.increment();
     expect(updates, [1]);
     expect(prefs.getInt(BadgeService.countKey), 1);
   });
 
-  test('increment persiste le compteur entre deux instances', () async {
+  test('increment persists the counter across two instances', () async {
     await badge.increment();
     await badge.increment();
     final other = BadgeService(prefs, badgeUpdater: (_) async {});
@@ -35,20 +35,20 @@ void main() {
     expect(prefs.getInt(BadgeService.countKey), 3);
   });
 
-  test('set écrit la valeur exacte', () async {
+  test('set writes the exact value', () async {
     await badge.set(7);
     expect(updates, [7]);
     expect(prefs.getInt(BadgeService.countKey), 7);
   });
 
-  test('reset remet à zéro', () async {
+  test('reset sets back to zero', () async {
     await badge.set(3);
     await badge.reset();
     expect(updates, [3, 0]);
     expect(prefs.getInt(BadgeService.countKey), 0);
   });
 
-  test('un échec du badge natif n\'est pas propagé', () async {
+  test('a native badge failure is not propagated', () async {
     badge = BadgeService(
       prefs,
       badgeUpdater: (_) async => throw Exception('launcher'),

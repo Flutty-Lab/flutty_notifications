@@ -40,13 +40,13 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _init() async {
     await _notifications.init(
-      // Remplacer par l'écriture réelle (ex. Cloud Function ou Firestore).
+      // Replace with the real write (e.g. Cloud Function or Firestore).
       onTokenPersist: (token) async {
-        _log('token persisté: ${token.substring(0, 12)}…');
+        _log('token persisted: ${token.substring(0, 12)}…');
         return true;
       },
       onTokenRemove: (token) async {
-        _log('token retiré');
+        _log('token removed');
       },
       onNotificationTap: (message) => _log('tap → ${message.route}'),
       onForegroundMessage: (message) => _log('push: ${message.title}'),
@@ -73,23 +73,23 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Permission : ${_access.name}'),
+            Text('Permission: ${_access.name}'),
             const SizedBox(height: 8),
-            Text('Dernier événement : $_lastEvent'),
+            Text('Last event: $_lastEvent'),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () async {
                 final access = await _notifications.requestPermission();
                 setState(() => _access = access);
               },
-              child: const Text('Demander la permission'),
+              child: const Text('Request permission'),
             ),
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () async {
                 await _notifications.openNotificationSettings();
               },
-              child: const Text('Ouvrir les réglages système'),
+              child: const Text('Open system settings'),
             ),
           ],
         ),

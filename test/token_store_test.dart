@@ -12,16 +12,16 @@ void main() {
     store = SharedPreferencesTokenStore(await SharedPreferences.getInstance());
   });
 
-  test('persistedToken est null au départ', () {
+  test('persistedToken is null initially', () {
     expect(store.persistedToken, isNull);
   });
 
-  test('save puis lecture', () async {
+  test('save then read', () async {
     await store.save('token-1');
     expect(store.persistedToken, 'token-1');
   });
 
-  test('clear oublie le token', () async {
+  test('clear forgets the token', () async {
     await store.save('token-1');
     await store.clear();
     expect(store.persistedToken, isNull);
